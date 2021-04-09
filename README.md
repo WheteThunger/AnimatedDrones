@@ -2,6 +2,16 @@
 
 - Animates propellers of RC drones and plays audio effects while they are being controlled
 
+No config or permissions, since I'm assuming this will eventually become vanilla.
+
+## Recommended compatible plugins
+
+- [Drone Hover](https://umod.org/plugins/drone-hover) -- Allows RC drones to hover in place while not being controlled.
+- [Drone Lights](https://umod.org/plugins/drone-lights) -- Adds controllable search lights to RC drones.
+- [Drone Storage](https://umod.org/plugins/drone-storage) -- Allows players to deploy a small stash to RC drones.
+- [Drone Turrets](https://umod.org/plugins/drone-turrets) -- Allows players to deploy auto turrets to RC drones.
+- [RC Identifier Fix](https://umod.org/plugins/rc-identifier-fix) -- Auto updates RC identifiers saved in computer stations to refer to the correct entity.
+
 ## FAQ
 
 #### How do I get a drone?
@@ -15,6 +25,18 @@ If a player has building privilege, they can pull out a hammer and set the ID of
 #### Can I remove the sounds effects of animated drones?
 
 No, not possible.
+
+## Developer API
+
+#### API_StopAnimating
+
+Plugins can call this API to stop animating a drone. Nothing happens if the drone was not already being animated.
+
+```csharp
+void API_StopAnimating(Drone drone)
+```
+
+This is useful for plugins that resize drones since the animated delivery drone may not resize when animation begins if the drone was already resized. In such an example, it's probably better to just disable animating the drone completely by using this API method plus the hook to prevent it from starting animation.
 
 ## Developer Hooks
 

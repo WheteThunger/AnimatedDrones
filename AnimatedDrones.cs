@@ -74,6 +74,15 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region API
+
+        private void API_StopAnimating(Drone drone)
+        {
+            MaybeStopAnimating(drone);
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private static bool AnimateWasBlocked(Drone drone)
