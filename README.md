@@ -1,8 +1,8 @@
 ## Features
 
 - Animates propellers of RC drones and plays audio effects while they are being controlled
-
-No config or permissions, since I'm assuming this will eventually become vanilla.
+- Adds RC drone collision effects
+- Adds RC drone on-death effects
 
 ## Recommended compatible plugins
 
@@ -11,6 +11,37 @@ No config or permissions, since I'm assuming this will eventually become vanilla
 - [Drone Storage](https://umod.org/plugins/drone-storage) -- Allows players to deploy a small stash to RC drones.
 - [Drone Turrets](https://umod.org/plugins/drone-turrets) -- Allows players to deploy auto turrets to RC drones.
 - [RC Identifier Fix](https://umod.org/plugins/rc-identifier-fix) -- Auto updates RC identifiers saved in computer stations to refer to the correct entity.
+
+## Configuration
+
+```json
+{
+  "Animation": {
+    "Enabled": true
+  },
+  "CollisionEffect": {
+    "Enabled": true,
+    "RequiredMagnitude": 40,
+    "EffectPrefab": "assets/content/vehicles/modularcar/carcollisioneffect.prefab"
+  },
+  "DeathEffect": {
+    "Enabled": true,
+    "EffectPrefab": "assets/prefabs/ammo/40mmgrenade/effects/40mm_he_explosion.prefab"
+  }
+}
+```
+
+- `Animation`
+  - `Enabled` (`true` or `false`) -- While `true`, drones will display animated propellers and play audio effects while they are being controlled.
+    - Also applies when a drone is hovering via the [Drone Hover](https://umod.org/plugins/drone-hover) plugin.
+    - Does not apply to drones resized via Drone Scale Manager.
+- `CollisionEffect`
+  - `Enabled` (`true` or `false`) -- While `true`, drones will run an effect on collision.
+  - `RequiredMagnitude` -- Required collision magnitude to run a collision effect.
+  - `EffectPrefab` -- The effect prefab to run.
+- `DeathEffect`
+  - `Enabled` (`true` or `false`) -- While `true`, drones will run an effect on death.
+  - `EffectPrefab` -- The effect prefab to run.
 
 ## FAQ
 
@@ -50,4 +81,14 @@ This is useful for plugins that resize drones since the animated delivery drone 
 
 ```csharp
 bool? OnDroneAnimationStart(Drone drone)
+```
+
+#### OnDroneCollisionEffect
+
+- Called when a drone is about to run a collision effect
+- Returning `false` will prevent the effect from being run
+- Returning `null` will result in the default behavior
+
+```csharp
+bool? OnDroneCollisionEffect(Drone drone, Collision collision)
 ```
