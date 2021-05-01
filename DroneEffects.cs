@@ -9,7 +9,7 @@ using VLB;
 
 namespace Oxide.Plugins
 {
-    [Info("Drone Effects", "WhiteThunder", "1.0.0")]
+    [Info("Drone Effects", "WhiteThunder", "1.0.1")]
     [Description("Adds collision effects and propeller animations to RC drones.")]
     internal class DroneEffects : CovalencePlugin
     {
