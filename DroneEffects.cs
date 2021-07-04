@@ -2,6 +2,8 @@
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Oxide.Core;
+using Oxide.Core.Plugins;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,15 +11,23 @@ using VLB;
 
 namespace Oxide.Plugins
 {
-    [Info("Drone Effects", "WhiteThunder", "1.0.1")]
+    [Info("Drone Effects", "WhiteThunder", "1.0.2")]
     [Description("Adds collision effects and propeller animations to RC drones.")]
     internal class DroneEffects : CovalencePlugin
     {
         #region Fields
 
+        [PluginReference]
+        private Plugin BetterDroneCollision;
+
+        private static DroneEffects _pluginInstance;
         private static Configuration _pluginConfig;
 
         private const string DeliveryDronePrefab = "assets/prefabs/misc/marketplace/drone.delivery.prefab";
+
+        private const float CollisionDistanceFraction = 0.25f;
+
+        private bool _usingCustomCollisionListener = false;
 
         #endregion
 
@@ -25,16 +35,12 @@ namespace Oxide.Plugins
 
         private void Init()
         {
+            _pluginInstance = this;
+
             if (!_pluginConfig.DeathEffect.Enabled
                 || string.IsNullOrEmpty(_pluginConfig.DeathEffect.EffectPrefab))
             {
                 Unsubscribe(nameof(OnEntityDeath));
-            }
-
-            if (!_pluginConfig.CollisionEffect.Enabled
-                || string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab))
-            {
-                Unsubscribe(nameof(OnEntitySpawned));
             }
 
             if (!_pluginConfig.Animation.Enabled)
@@ -42,10 +48,20 @@ namespace Oxide.Plugins
                 Unsubscribe(nameof(OnBookmarkControl));
                 Unsubscribe(nameof(OnBookmarkControlEnded));
             }
+
+            Unsubscribe(nameof(OnEntitySpawned));
         }
 
         private void OnServerInitialized()
         {
+            if (_pluginConfig.CollisionEffect.Enabled
+                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab)
+                && BetterDroneCollision == null)
+            {
+                Subscribe(nameof(OnEntitySpawned));
+                _usingCustomCollisionListener = true;
+            }
+
             // Delay this in case Drone Hover needs a moment to set the drones to being controlled.
             NextTick(() =>
             {
@@ -58,7 +74,7 @@ namespace Oxide.Plugins
                     if (_pluginConfig.Animation.Enabled)
                         StartAnimatingIfNotAlready(drone);
 
-                    if (_pluginConfig.CollisionEffect.Enabled)
+                    if (_usingCustomCollisionListener)
                         drone.GetOrAddComponent<DroneCollisionListener>();
                 }
             });
@@ -75,10 +91,21 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (_pluginConfig.CollisionEffect.Enabled)
+            if (_usingCustomCollisionListener)
                 DroneCollisionListener.DestroyAll();
 
             _pluginConfig = null;
+            _pluginInstance = null;
+        }
+
+        private void OnPluginLoaded(Plugin plugin)
+        {
+            if (_usingCustomCollisionListener && plugin == BetterDroneCollision)
+            {
+                Unsubscribe(nameof(OnEntitySpawned));
+                DroneCollisionListener.DestroyAll();
+                _usingCustomCollisionListener = false;
+            }
         }
 
         private void OnBookmarkControl(ComputerStation computerStation, BasePlayer player, string bookmarkName, IRemoteControllable entity)
@@ -129,6 +156,12 @@ namespace Oxide.Plugins
             Effect.server.Run(_pluginConfig.DeathEffect.EffectPrefab, drone.transform.position, Vector3.up);
         }
 
+        // This hook is exposed by plugin: Better Drone Collision (BetterDroneCollision).
+        private void OnDroneCollisionImpact(Drone drone, Collision collision)
+        {
+            ShowCollisionEffect(drone, collision);
+        }
+
         #endregion
 
         #region API
@@ -169,6 +202,17 @@ namespace Oxide.Plugins
                     return childOfType;
             }
             return null;
+        }
+
+        private void ShowCollisionEffect(Drone drone, Collision collision)
+        {
+            if (CollisionEffectWasBlocked(drone, collision))
+                return;
+
+            var transform = drone.transform;
+            var collisionPoint = collision.GetContact(0).point;
+            collisionPoint += (transform.position - collisionPoint) * CollisionDistanceFraction;
+            Effect.server.Run(_pluginConfig.CollisionEffect.EffectPrefab, collisionPoint, transform.up);
         }
 
         #endregion
@@ -263,15 +307,8 @@ namespace Oxide.Plugins
             }
 
             private const float DelayBetweenCollisions = 0.25f;
-            private const float CollisionDistanceFraction = 0.25f;
 
-            private Transform _transform;
             private float _nextCollisionFXTime;
-
-            private void Awake()
-            {
-                _transform = baseEntity.transform;
-            }
 
             private void OnCollisionEnter(Collision collision)
             {
@@ -287,13 +324,8 @@ namespace Oxide.Plugins
                 if (Time.time < _nextCollisionFXTime)
                     return;
 
-                if (CollisionEffectWasBlocked(baseEntity, collision))
-                    return;
-
+                _pluginInstance.ShowCollisionEffect(baseEntity, collision);
                 _nextCollisionFXTime = Time.time + DelayBetweenCollisions;
-                var collisionPoint = collision.GetContact(0).point;
-                collisionPoint += (_transform.position - collisionPoint) * CollisionDistanceFraction;
-                Effect.server.Run(_pluginConfig.CollisionEffect.EffectPrefab, collisionPoint, _transform.up);
             }
         }
 
@@ -434,8 +466,9 @@ namespace Oxide.Plugins
                     SaveConfig();
                 }
             }
-            catch
+            catch (Exception e)
             {
+                LogError(e.Message);
                 LogWarning($"Configuration file {Name}.json is invalid; using defaults");
                 LoadDefaultConfig();
             }
