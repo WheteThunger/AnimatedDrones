@@ -50,16 +50,23 @@ namespace Oxide.Plugins
             }
 
             Unsubscribe(nameof(OnEntitySpawned));
+            Unsubscribe(nameof(OnDroneCollisionImpact));
         }
 
         private void OnServerInitialized()
         {
-            if (_pluginConfig.CollisionEffect.Enabled
-                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab)
-                && BetterDroneCollision == null)
+            var enableCollisionEffect = _pluginConfig.CollisionEffect.Enabled
+                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab);
+
+            if (enableCollisionEffect)
             {
-                Subscribe(nameof(OnEntitySpawned));
-                _usingCustomCollisionListener = true;
+                if (BetterDroneCollision == null)
+                {
+                    Subscribe(nameof(OnEntitySpawned));
+                    _usingCustomCollisionListener = true;
+                }
+                else
+                    Subscribe(nameof(OnDroneCollisionImpact));
             }
 
             // Delay this in case Drone Hover needs a moment to set the drones to being controlled.
