@@ -27,7 +27,6 @@ namespace Oxide.Plugins
 
         private const float CollisionDistanceFraction = 0.25f;
 
-        private bool _enableCollisionEffect = false;
         private bool _usingCustomCollisionListener = false;
 
         #endregion
@@ -52,14 +51,12 @@ namespace Oxide.Plugins
 
             Unsubscribe(nameof(OnEntitySpawned));
             Unsubscribe(nameof(OnDroneCollisionImpact));
-
-            _enableCollisionEffect = _pluginConfig.CollisionEffect.Enabled
-                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab);
         }
 
         private void OnServerInitialized()
         {
-            if (_enableCollisionEffect)
+            if (_pluginConfig.CollisionEffect.Enabled
+                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab))
             {
                 if (BetterDroneCollision != null)
                 {
@@ -110,9 +107,7 @@ namespace Oxide.Plugins
 
         private void OnPluginLoaded(Plugin plugin)
         {
-            if (_enableCollisionEffect
-                && _usingCustomCollisionListener
-                && plugin == BetterDroneCollision)
+            if (plugin == BetterDroneCollision && _usingCustomCollisionListener)
             {
                 Unsubscribe(nameof(OnEntitySpawned));
                 DroneCollisionListener.DestroyAll();
