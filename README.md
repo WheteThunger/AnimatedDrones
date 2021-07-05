@@ -30,6 +30,7 @@
 - `CollisionEffect`
   - `Enabled` (`true` or `false`) -- While `true`, drones will run an effect on collision.
   - `RequiredMagnitude` -- Required collision magnitude to run a collision effect.
+    - This option is ignored while [Better Drone Collision](https://umod.org/plugins/better-drone-collision) is loaded. Instead, collision effects will play when that plugin signals it.
   - `EffectPrefab` -- The effect prefab to run.
 - `DeathEffect`
   - `Enabled` (`true` or `false`) -- While `true`, drones will run an effect on death.
@@ -39,7 +40,7 @@
 
 #### How do I get a drone?
 
-As of this writing (March 2021), RC drones are a deployable item named `drone`, but they do not appear naturally in any loot table, nor are they craftable. However, since they are simply an item, you can use plugins to add them to loot tables, kits, GUI shops, etc. Admins can also get them with the command `inventory.give drone 1`, or spawn one in directly with `spawn drone.deployed`.
+As of this writing, RC drones are a deployable item named `drone`, but they do not appear naturally in any loot table, nor are they craftable. However, since they are simply an item, you can use plugins to add them to loot tables, kits, GUI shops, etc. Admins can also get them with the command `inventory.give drone 1`, or spawn one in directly with `spawn drone.deployed`.
 
 #### How do I remote-control a drone?
 
