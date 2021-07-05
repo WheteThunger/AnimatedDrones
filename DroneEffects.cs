@@ -27,6 +27,7 @@ namespace Oxide.Plugins
 
         private const float CollisionDistanceFraction = 0.25f;
 
+        private bool _enableCollisionEffect = false;
         private bool _usingCustomCollisionListener = false;
 
         #endregion
@@ -51,22 +52,24 @@ namespace Oxide.Plugins
 
             Unsubscribe(nameof(OnEntitySpawned));
             Unsubscribe(nameof(OnDroneCollisionImpact));
+
+            _enableCollisionEffect = _pluginConfig.CollisionEffect.Enabled
+                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab);
         }
 
         private void OnServerInitialized()
         {
-            var enableCollisionEffect = _pluginConfig.CollisionEffect.Enabled
-                && !string.IsNullOrEmpty(_pluginConfig.CollisionEffect.EffectPrefab);
-
-            if (enableCollisionEffect)
+            if (_enableCollisionEffect)
             {
-                if (BetterDroneCollision == null)
+                if (BetterDroneCollision != null)
+                {
+                    Subscribe(nameof(OnDroneCollisionImpact));
+                }
+                else
                 {
                     Subscribe(nameof(OnEntitySpawned));
                     _usingCustomCollisionListener = true;
                 }
-                else
-                    Subscribe(nameof(OnDroneCollisionImpact));
             }
 
             // Delay this in case Drone Hover needs a moment to set the drones to being controlled.
@@ -107,11 +110,15 @@ namespace Oxide.Plugins
 
         private void OnPluginLoaded(Plugin plugin)
         {
-            if (_usingCustomCollisionListener && plugin == BetterDroneCollision)
+            if (_enableCollisionEffect
+                && _usingCustomCollisionListener
+                && plugin == BetterDroneCollision)
             {
                 Unsubscribe(nameof(OnEntitySpawned));
                 DroneCollisionListener.DestroyAll();
                 _usingCustomCollisionListener = false;
+
+                Subscribe(nameof(OnDroneCollisionImpact));
             }
         }
 
