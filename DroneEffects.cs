@@ -11,7 +11,7 @@ using VLB;
 
 namespace Oxide.Plugins
 {
-    [Info("Drone Effects", "WhiteThunder", "1.0.2")]
+    [Info("Drone Effects", "WhiteThunder", "1.0.3")]
     [Description("Adds collision effects and propeller animations to RC drones.")]
     internal class DroneEffects : CovalencePlugin
     {
@@ -45,8 +45,10 @@ namespace Oxide.Plugins
 
             if (!_pluginConfig.Animation.Enabled)
             {
-                Unsubscribe(nameof(OnBookmarkControl));
+                Unsubscribe(nameof(OnBookmarkControlStarted));
                 Unsubscribe(nameof(OnBookmarkControlEnded));
+                Unsubscribe(nameof(OnDroneControlStarted));
+                Unsubscribe(nameof(OnDroneControlEnded));
             }
 
             Unsubscribe(nameof(OnEntitySpawned));
@@ -79,7 +81,7 @@ namespace Oxide.Plugins
                         continue;
 
                     if (_pluginConfig.Animation.Enabled)
-                        StartAnimatingIfNotAlready(drone);
+                        MaybeStartAnimating(drone);
 
                     if (_usingCustomCollisionListener)
                         drone.GetOrAddComponent<DroneCollisionListener>();
@@ -117,36 +119,14 @@ namespace Oxide.Plugins
             }
         }
 
-        private void OnBookmarkControl(ComputerStation computerStation, BasePlayer player, string bookmarkName, IRemoteControllable entity)
+        private void OnBookmarkControlStarted(ComputerStation station, BasePlayer player, string bookmarkName, Drone drone)
         {
-            var previousDrone = GetControlledDrone(computerStation);
-
-            // Must delay since the drone hasn't stopped being controlled yet.
-            NextTick(() =>
-            {
-                // Delay again in case Drone Hover is going to keep it in the controlled state.
-                NextTick(() =>
-                {
-                    if (previousDrone != null && !previousDrone.IsBeingControlled)
-                        MaybeStopAnimating(previousDrone);
-
-                    var nextDrone = entity as Drone;
-                    if (nextDrone != null)
-                        StartAnimatingIfNotAlready(nextDrone);
-                });
-            });
+            OnDroneControlStarted(drone);
         }
 
         private void OnBookmarkControlEnded(ComputerStation station, BasePlayer player, Drone drone)
         {
-            // Delay in case Drone Hover is going to keep it in the controlled state.
-            NextTick(() =>
-            {
-                if (drone == null || drone.IsBeingControlled)
-                    return;
-
-                MaybeStopAnimating(drone);
-            });
+            OnDroneControlEnded(drone);
         }
 
         private void OnEntitySpawned(Drone drone)
@@ -171,13 +151,32 @@ namespace Oxide.Plugins
             ShowCollisionEffect(drone, collision);
         }
 
+        // This hook is exposed by plugin: Ridable Drones (RidableDrones).
+        private void OnDroneControlStarted(Drone drone)
+        {
+            MaybeStartAnimating(drone);
+        }
+
+        // This hook is exposed by plugin: Ridable Drones (RidableDrones).
+        private void OnDroneControlEnded(Drone drone)
+        {
+            // Delay in case Drone Hover is going to keep the drone in the controlled state.
+            NextTick(() =>
+            {
+                if (drone == null || drone.IsBeingControlled)
+                    return;
+
+                StopAnimating(drone);
+            });
+        }
+
         #endregion
 
         #region API
 
         private void API_StopAnimating(Drone drone)
         {
-            MaybeStopAnimating(drone);
+            StopAnimating(drone);
         }
 
         #endregion
@@ -231,47 +230,6 @@ namespace Oxide.Plugins
         private static DeliveryDrone GetChildDeliveryDrone(Drone drone) =>
             GetChildOfType<DeliveryDrone>(drone);
 
-        private static DeliveryDrone StartAnimatingIfNotAlready(Drone drone)
-        {
-            if (!drone.IsBeingControlled)
-                return null;
-
-            var deliveryDrone = GetChildDeliveryDrone(drone);
-            if (deliveryDrone != null)
-            {
-                SetupDeliveryDrone(deliveryDrone);
-                return deliveryDrone;
-            }
-
-            return TryStartAnimating(drone);
-        }
-
-        private static void MaybeStopAnimating(Drone drone)
-        {
-            var deliveryDrone = GetChildDeliveryDrone(drone);
-            if (deliveryDrone == null)
-                return;
-
-            deliveryDrone.Kill();
-        }
-
-        private static DeliveryDrone TryStartAnimating(Drone drone)
-        {
-            if (AnimateWasBlocked(drone))
-                return null;
-
-            var deliveryDrone = GameManager.server.CreateEntity(DeliveryDronePrefab) as DeliveryDrone;
-            if (deliveryDrone == null)
-                return null;
-
-            deliveryDrone.SetParent(drone);
-            deliveryDrone.CancelInvoke(deliveryDrone.Think);
-            deliveryDrone.Spawn();
-            SetupDeliveryDrone(deliveryDrone);
-
-            return deliveryDrone;
-        }
-
         private static void SetupDeliveryDrone(DeliveryDrone deliveryDrone)
         {
             deliveryDrone.EnableSaving(false);
@@ -291,6 +249,42 @@ namespace Oxide.Plugins
 
             if (deliveryDrone._mapMarkerInstance != null)
                 deliveryDrone._mapMarkerInstance.Kill();
+        }
+
+        private static void StartAnimationg(Drone drone)
+        {
+            var deliveryDrone = GameManager.server.CreateEntity(DeliveryDronePrefab) as DeliveryDrone;
+            if (deliveryDrone == null)
+                return;
+
+            deliveryDrone.SetParent(drone);
+            deliveryDrone.CancelInvoke(deliveryDrone.Think);
+            deliveryDrone.Spawn();
+            SetupDeliveryDrone(deliveryDrone);
+        }
+
+        private static void MaybeStartAnimating(Drone drone)
+        {
+            if (!drone.IsBeingControlled)
+                return;
+
+            var deliveryDrone = GetChildDeliveryDrone(drone);
+            if (deliveryDrone != null)
+                return;
+
+            if (AnimateWasBlocked(drone))
+                return;
+
+            StartAnimationg(drone);
+        }
+
+        private static void StopAnimating(Drone drone)
+        {
+            var deliveryDrone = GetChildDeliveryDrone(drone);
+            if (deliveryDrone == null)
+                return;
+
+            deliveryDrone.Kill();
         }
 
         #endregion
