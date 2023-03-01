@@ -1,3 +1,7 @@
+## This plugin is obsolete
+
+**As of the March 2023 Rust update, RC drones have animation, collision and on-death effects built into the game. This plugin no longer compiles and will not be updated. This plugin can still be downloaded to review the old implementation.** 
+
 ## Features
 
 - Animates propellers of RC drones and plays audio effects while they are being controlled
